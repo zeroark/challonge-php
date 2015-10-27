@@ -39,9 +39,10 @@ class ChallongeAPI {
     $params['api_key'] = $this->api_key;
     
     // Build the URL that'll be hit. If the request is GET, params will be appended later
-    $call_url = "https://challonge.com/api/v1/".$path.'.xml';
+    $call_url = "https://api.challonge.com/v1/".$path.'.xml';
     
     $curl_handle=curl_init();
+
     // Common settings
     curl_setopt($curl_handle,CURLOPT_CONNECTTIMEOUT,5);
     curl_setopt($curl_handle,CURLOPT_RETURNTRANSFER,1);
