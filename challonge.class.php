@@ -6,6 +6,7 @@
 */
 
 class ChallongeAPI {
+
   // Attributes
   private $api_key;
   public $errors = array();
@@ -27,8 +28,9 @@ class ChallongeAPI {
     $path - String
     $params - array()
     $method - String (get, post, put, delete)
+    $format - String (.xml, .json)
   */
-  public function makeCall($path='', $params=array(), $method='get') {
+  public function makeCall($path='', $params=array(), $method='get', $format='.xml') {
    
     // Clear the public vars
     $this->errors = array();
@@ -39,7 +41,7 @@ class ChallongeAPI {
     $params['api_key'] = $this->api_key;
     
     // Build the URL that'll be hit. If the request is GET, params will be appended later
-    $call_url = "https://api.challonge.com/v1/".$path.'.xml';
+    $call_url = "https://api.challonge.com/v1/" . $path . $format;
     
     $curl_handle=curl_init();
 
@@ -88,7 +90,7 @@ class ChallongeAPI {
     curl_setopt($curl_handle, CURLOPT_HTTPHEADER, $curlheaders); 
     curl_setopt($curl_handle,CURLOPT_URL, $call_url);
     
-    $curl_result = curl_exec($curl_handle);   
+    $curl_result = curl_exec($curl_handle);
     $info = curl_getinfo($curl_handle);
     $this->status_code = (int) $info['http_code'];
     $return = false;
@@ -96,40 +98,81 @@ class ChallongeAPI {
       // CURL Failed
       $this->errors[] = curl_error($curl_handle);
     } else {
-      switch ($this->status_code) {
-      
-        case 401: // Bad API Key
-        case 422: // Validation errors
-        case 404: // Not found/Not in scope of account
-          $return = $this->result = new SimpleXMLElement($curl_result);
-          foreach($return->error as $error) {
-            $this->errors[] = $error;
-          }
-          $return = false;
-          break;
-          
-        case 500: // Oh snap!
-          $return = $this->result = false;
-          $this->errors[] = "Server returned HTTP 500";
-          break;
-          
-        case 200:
-          $return = $this->result = new SimpleXMLElement($curl_result);
-          // Check if the result set is nil/empty
-          if (sizeof($return) ==0) {
-            $this->errors[] = "Result set empty";
-            $return = false;
-          }
-          break;
-          
-        default:
-          $this->errors[] = "Server returned unexpected HTTP Code ($this->status_code)";
-          $return = false;
-      }
+      $return = $format == '.xml' ? $this->parseXmlResponse($curl_result) : $this->parseJsonResponse($curl_result);
     }
     
     curl_close($curl_handle);
     return $return;
+  }
+
+  private function parseJsonResponse($curl_result) {
+      switch ($this->status_code) {
+
+          case 401: // Bad API Key
+          case 422: // Validation errors
+          case 404: // Not found/Not in scope of account
+              $return = $this->result = $curl_result;
+              foreach($return->error as $error) {
+                  $this->errors[] = $error;
+              }
+              $return = false;
+              break;
+
+          case 500: // Oh snap!
+              $return = $this->result = false;
+              $this->errors[] = "Server returned HTTP 500";
+              break;
+
+          case 200:
+              $return = $this->result = $curl_result;
+              // Check if the result set is nil/empty
+              if (sizeof($return) ==0) {
+                  $this->errors[] = "Result set empty";
+                  $return = false;
+              }
+              break;
+
+          default:
+              $this->errors[] = "Server returned unexpected HTTP Code ($this->status_code)";
+              $return = false;
+      }
+
+      return $return;
+  }
+
+  private function parseXmlResponse($curl_result) {
+      switch ($this->status_code) {
+
+          case 401: // Bad API Key
+          case 422: // Validation errors
+          case 404: // Not found/Not in scope of account
+              $return = $this->result = new SimpleXMLElement($curl_result);
+              foreach($return->error as $error) {
+                  $this->errors[] = $error;
+              }
+              $return = false;
+              break;
+
+          case 500: // Oh snap!
+              $return = $this->result = false;
+              $this->errors[] = "Server returned HTTP 500";
+              break;
+
+          case 200:
+              $return = $this->result = new SimpleXMLElement($curl_result);
+              // Check if the result set is nil/empty
+              if (sizeof($return) ==0) {
+                  $this->errors[] = "Result set empty";
+                  $return = false;
+              }
+              break;
+
+          default:
+              $this->errors[] = "Server returned unexpected HTTP Code ($this->status_code)";
+              $return = false;
+      }
+
+      return $return;
   }
   
   public function getTournaments($params=array()) {
